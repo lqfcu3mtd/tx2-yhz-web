@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>元魂珠 · 融合工坊</title>
+  <link rel="stylesheet" href="web.css">
+</head>
+<body>
+<main class="app">
+  <header><div><span class="eyebrow">天下 · 元魂珠</span><h1>融合工坊</h1><p>算清每一步，再开始合成。</p></div><span class="badge">离线计算</span></header>
+  <nav aria-label="功能"><button class="active" data-tab="fusion" aria-selected="true">双珠融合</button><button data-tab="planner" aria-selected="false">合成路线</button></nav>
+  <section id="fusion" class="panel">
+    <div class="section-head"><div><h2>选择同一种元魂珠</h2><p>基础点数随珠种变化，A、B共用珠种。</p></div></div>
+    <div class="selection card"><label>系别<select id="school"></select></label><label>原料珠种<select id="species"></select></label><span id="speciesInfo" class="muted"></span></div>
+    <form id="fusionForm">
+      <div class="dual" id="pearlInputs"></div>
+      <div class="card actions"><label>融合道具<select id="itemMode"><option value="none">仅融合丹（星级随机）</option><option value="keep">融合丹＋保星丹</option><option value="up">融合丹＋升星丹</option></select></label><button type="submit" class="primary">计算融合</button></div>
+    </form>
+    <p id="fusionError" class="error" role="alert"></p>
+    <div id="fusionResult" aria-live="polite"></div>
+  </section>
+  <section id="planner" class="panel" hidden>
+    <div class="section-head"><div><h2>规划元魂珠合成路线</h2><p>可以从3星原料开始，也可以把已有元魂珠带入路线。</p></div></div>
+    <form id="planForm" class="card planner-form">
+      <div class="planner-sections">
+        <section class="planner-section" aria-labelledby="goalHeading">
+          <div class="form-section-head"><h3 id="goalHeading">合成目标</h3><span>选择你想得到的珠子</span></div>
+          <div class="goal-layout">
+            <div class="goal-banner"><label for="targetFusion">目标融合点</label><div class="goal-value"><input id="targetFusion" type="number" min="1" max="1500" step="1" inputmode="numeric" value="400" required aria-describedby="fusionGoalHint"><span>点</span></div><small id="fusionGoalHint">至少达到此融合累积点，不含聚能点</small></div>
+            <div class="goal-selects">
+              <label>目标星级<select id="targetStar"><option value="3">3星</option><option value="4" selected>4星</option><option value="5">5星</option></select></label>
+              <label>成品代数<select id="targetGeneration"><option value="any">不限代数</option><option value="0">0代</option><option value="1">1代</option><option value="2">2代</option></select></label>
+            </div>
+          </div>
+          <div class="source-fields">
+            <label>3星原料珠种<select id="baseId"></select></label>
+            <label>原料成长<span class="number-control"><input id="growth" type="number" min="800" max="1300" step="1" inputmode="numeric" value="1300" required><span class="control-unit">/1300</span></span></label>
+          </div>
+          <p class="field-hint">指定代数时只比较该代数方案；2代及以上不能保星。</p>
+        </section>
+        <section class="planner-section training-section" aria-labelledby="trainingHeading">
+          <div class="form-section-head"><h3 id="trainingHeading">成品养成</h3><span>最终喂养费用一并计入总价</span></div>
+          <div class="training-fields">
+            <label>人物等级<span class="number-control"><input id="charLevel" type="number" min="1" max="80" step="1" inputmode="numeric" value="75" required><span class="control-unit">级</span></span></label>
+            <label>成品等级<span class="number-control"><input id="targetLevel" type="number" min="1" max="80" step="1" inputmode="numeric" value="80" required><span class="control-unit">级</span></span></label>
+            <label>聚能等级<span class="number-control"><input id="targetEnergy" type="number" min="1" max="80" step="1" inputmode="numeric" value="80" required><span class="control-unit">级</span></span></label>
+          </div>
+          <p class="field-hint">成品等级 ≤ 人物等级＋5（最高80）；聚能等级 ≤ 成品等级。</p>
+          <div class="search-setting"><label>最多融合层数<span class="number-control"><input id="maxDepth" type="number" min="1" max="8" step="1" inputmode="numeric" value="8" required><span class="control-unit">层</span></span></label><p>比较各层的喂养与融合时机，<br>在所选范围内寻找低成本路线。</p></div>
+        </section>
+      </div>
+      <section class="planner-section owned-section" aria-labelledby="ownedHeading">
+        <div class="owned-header"><div><h3 id="ownedHeading">已有元魂珠</h3><p class="field-hint">可选，最多添加<span id="ownedLimit"></span>颗<span id="ownedSchool"></span>的3～5星珠。已添加时，方案会使用至少一颗；费用只计算新增消耗。</p><p id="ownedFusionHint" class="field-hint">已有503点融合分配就填503。这个数只填融合累积的点，聚能等级另填。</p></div><button id="addOwned" type="button" class="owned-add">＋ 添加已有珠</button></div>
+        <div id="ownedList"></div>
+        <template id="ownedTemplate">
+          <fieldset class="owned-bead" data-owned>
+            <legend data-owned-label></legend>
+            <div class="owned-fields">
+              <label>星级<select data-field="star"><option value="3">3星</option><option value="4">4星</option><option value="5">5星</option></select></label>
+              <label>代数<span class="number-control"><input type="number" data-field="generation" min="0" max="99" step="1" inputmode="numeric" value="0" required><span class="control-unit">代</span></span></label>
+              <label>成长<span class="number-control"><input type="number" data-field="growth" min="800" max="1300" step="1" inputmode="numeric" required><span class="control-unit">/1300</span></span></label>
+              <label>融合分配点<span class="number-control"><input type="number" data-field="fusionPoints" min="0" max="1500" step="1" inputmode="numeric" required aria-describedby="ownedFusionHint"><span class="control-unit">点</span></span></label>
+              <label>当前等级<span class="number-control"><input type="number" data-field="level" min="1" max="80" step="1" inputmode="numeric" value="1" required><span class="control-unit">级</span></span></label>
+              <label>当前聚能<span class="number-control"><input type="number" data-field="energyLevel" min="1" max="80" step="1" inputmode="numeric" value="1" required><span class="control-unit">级</span></span></label>
+              <button type="button" class="owned-remove" data-remove-owned>移除</button>
+            </div>
+          </fieldset>
+        </template>
+      </section>
+      <details class="planner-options"><summary><span>价格与规划条件</span><small>资源单价 · 服务器规则 · 融合门槛</small></summary>
+        <div class="options-layout">
+          <section class="options-group"><h4>资源单价</h4><div class="price-fields">
+            <label>化雪经验<span class="number-control"><input id="expPrice" type="number" min="0" step="any" inputmode="decimal" value="4" required><span class="control-unit">金 / 1000万经验</span></span></label>
+            <label>精粹聚能丹<span class="number-control"><input id="jlPrice" type="number" min="0" step="any" inputmode="decimal" value="0.165" required><span class="control-unit">金 / 颗</span></span></label>
+            <label>3星原料<span class="number-control"><input id="basePrice" type="number" min="0" step="any" inputmode="decimal" value="50" required><span class="control-unit">金 / 颗</span></span></label>
+            <label>元宝兑换<span class="number-control"><input id="yuanbaoGold" type="number" min="0" step="any" inputmode="decimal" value="1" required><span class="control-unit">金 / 元宝</span></span></label>
+          </div><p class="field-hint">示例价格可修改，也可填0；化雪按所需经验折算。</p></section>
+          <section class="options-group"><h4>服务器与门槛</h4>
+            <div class="server-rule"><label><input type="checkbox" id="allowFiveStarFusion">允许5星元魂珠参与融合</label><span>6星始终不作为融合原料</span></div>
+            <div class="threshold-fields">
+              <label>3星最低能量<span class="number-control"><input id="min3" type="number" min="1" max="80" step="1" inputmode="numeric" value="27" required><span class="control-unit">级</span></span></label>
+              <label>4星最低能量<span class="number-control"><input id="min4" type="number" min="1" max="80" step="1" inputmode="numeric" value="37" required><span class="control-unit">级</span></span></label>
+              <label>5星最低能量<span class="number-control"><input id="min5" type="number" min="1" max="80" step="1" inputmode="numeric" value="42" required><span class="control-unit">级</span></span></label>
+            </div><p class="field-hint">门槛沿用旧资料，可按游戏调整；升星后代数归0。</p>
+          </section>
+        </div>
+        <p class="options-note">使用确定性保星 / 升星路线；关闭5星融合时，新融合的5星成品只能为0代。价格与条件会保存在方案明细中。</p>
+      </details>
+      <div class="planner-submit"><span>按输入价格估算 · 含最终成品养成</span><button type="submit" class="primary">生成合成路线 <span aria-hidden="true">→</span></button></div>
+    </form>
+    <p id="planError" class="error" role="alert"></p>
+    <div id="planResult" aria-live="polite"></div>
+  </section>
+  <footer>计算依据：归档模拟器源码与数据。尚未与当前游戏实测核对；融合资格与规划假设请在游戏内确认。</footer>
+</main>
+<script src="utils/reference-data.js"></script>
+<script src="utils/reference-calculator.js"></script>
+<script src="utils/planner.js"></script>
+<script src="utils/diagram.js"></script>
+<script src="web.js"></script>
+</body>
+</html>
