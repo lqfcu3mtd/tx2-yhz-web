@@ -1,0 +1,64 @@
+name: Deploy website to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Check out the latest main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/heads/main
+          persist-credentials: false
+
+      - name: Stage the public website
+        id: stage
+        shell: bash
+        run: |
+          set -euo pipefail
+          site="$(mktemp -d "${RUNNER_TEMP}/pages-site.XXXXXX")"
+          files=(
+            index.html
+            web.css
+            web.js
+            utils/reference-data.js
+            utils/reference-calculator.js
+            utils/planner.js
+            utils/diagram.js
+          )
+          for file in "${files[@]}"; do
+            if [[ "$(git ls-tree HEAD -- "$file")" != '100644 blob '* ]]; then
+              echo "::error::Expected a regular tracked website file at $file"
+              exit 1
+            fi
+            mkdir -p -- "$(dirname "$site/$file")"
+            git show "HEAD:$file" > "$site/$file"
+          done
+          echo "path=$site" >> "$GITHUB_OUTPUT"
+
+      - name: Upload the website artifact
+        uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
+        with:
+          path: ${{ steps.stage.outputs.path }}
+
+      - name: Deploy to Pages
+        id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
